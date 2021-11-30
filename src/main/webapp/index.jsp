@@ -43,10 +43,13 @@
     <script src="assets/js/router.min.js"></script>
     <script src="assets/js/vueCfg.min.js"></script>
 
+    <!-- new dependecies -->
     <script src="assets/js/vendors/v-calendar.umd.js"></script>
-    <!-- For test -->
     <script src="assets/js/vendors/axios.js"></script>
     <script src="assets/js/vendors/sweetalert.min.js"></script>
+    
+    <script src="assets/js/vendors/apexcharts.js"></script>
+    <script src="assets/js/vendors/vue-apexcharts.js"></script>
 
     <% } else { %>
     <link rel="stylesheet" type="text/css" href="assets/css/quill.snow.css">
@@ -66,9 +69,10 @@
     <script src="assets/js/vueCfg.js"></script>
 
     <script src="assets/js/vendors/v-calendar.umd.js"></script>
-    
     <script src="assets/js/vendors/axios.js"></script>
-    <script src="assets/js/vendors/sweetalert.min.js"></script>
+    <script src="assets/js/vendors/sweetalert.min.js"></script>    
+    <script src="assets/js/vendors/apexcharts.js"></script>
+    <script src="assets/js/vendors/vue-apexcharts.js"></script>
     <% }%>
 </head>
 
@@ -104,8 +108,19 @@
                     <li v-if="user.is('ADMIN')">
                         <router-link to="/sondages" v-bind:class="{ active: $route.path === '/sondages' || $route.path === '/sondage' }">Sondages</router-link>
                     </li>
+                    <li v-if="user.is('USER')">
+                        <router-link to="/votemajoritaire" v-bind:class="{ active: $route.path === '/votemajoritaire' || $route.path === '/createVoteMajoritaire' || $route.path === '/votemajoritairedetails'}">Votes majoritaires</router-link>
+                    </li>
+                    <li>
+                        <router-link to="/creation-debats-sur-cartes" v-bind:class="{ active: $route.path === '/creation-debats-sur-cartes' }">Ouvrir un débat sur carte</router-link>
+                    </li>
+                    <li>
+                        <router-link to="/documents-debats-sur-cartes" v-bind:class="{ active: $route.path === '/documents-debats-sur-cartes' }">Mes documents de débat sur carte</router-link>
+                    </li>
+                    <li>
+                        <router-link to="/debats-sur-cartes" v-bind:class="{ active: $route.path === '/debats-sur-cartes' }">Mes débats sur carte</router-link>
+                    </li>
                 </ul>
-
                 <ul class="right">
                     <template v-if="user.is('USER')">
                         <documented v-bind:value="$t('documentation.notification_panel')">
@@ -231,6 +246,7 @@
         const blueColor = styles.getPropertyValue('--blue-color');
         const greenColor = styles.getPropertyValue('--green-color');
         const greyColor = styles.getPropertyValue('--grey-color');
+        const ApiBaseUri = `${document.baseURI}ws`;
 
         new Vue({
             el: "#app",

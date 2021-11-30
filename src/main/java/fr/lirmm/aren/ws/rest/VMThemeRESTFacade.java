@@ -1,7 +1,12 @@
 package fr.lirmm.aren.ws.rest;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import fr.lirmm.aren.model.Team;
 import fr.lirmm.aren.model.vm.VMChoice;
+import fr.lirmm.aren.model.vm.VMNotification;
+import fr.lirmm.aren.model.vm.VMTeam;
 import fr.lirmm.aren.model.vm.VMTheme;
+import fr.lirmm.aren.service.TeamService;
 import fr.lirmm.aren.service.vm.VMChoiceService;
 import fr.lirmm.aren.service.vm.VMThemeService;
 import fr.lirmm.aren.service.vm.VMVoteService;
@@ -14,6 +19,9 @@ import javax.inject.Inject;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
+import java.io.File;
+import java.io.IOException;
+import java.time.ZonedDateTime;
 import java.util.*;
 
 /**
@@ -32,6 +40,9 @@ public class VMThemeRESTFacade extends AbstractRESTFacade<VMTheme>{
     @Inject
     VMVoteService voteService ;
 
+    @Inject
+    TeamService teamService ;
+
     @Override
     protected VMThemeService getService() {
         return themeService;
@@ -41,8 +52,40 @@ public class VMThemeRESTFacade extends AbstractRESTFacade<VMTheme>{
     //@RolesAllowed({"ADMIN"})
     @PermitAll
     public VMTheme create(VMTheme theme){
-        System.out.println(theme.toString());
-        return super.create(theme);
+        VMTheme res= super.create(theme);
+        try{
+            File file = new File("/aren/tmp/vote_majoritaire.json");
+            File directory = new File("/aren/tmp");
+            if (! directory.exists()){
+                directory.mkdirs() ;
+            }
+            System.out.println(file.getAbsolutePath());
+            if(!file.exists())
+                file.createNewFile() ;
+            VMNotification notification=new VMNotification() ;
+            List<String> emails=new ArrayList<>() ;
+            Team team=teamService.find(theme.getTeam().getId());
+            team.getUsers().forEach(user->{
+                emails.add(user.getEmail()) ;
+            });
+            notification.setExpiracy(theme.getExpiracyDate().toString());
+            String serverRoot = request.getRequestURL().substring(0, request.getRequestURL().length() - "/ws/vm/themes".length());
+            notification.setLink(serverRoot+"/votemajoritairedetails?id="+res.getId());
+            notification.setEmails(emails);
+            String []emails_array=new String[notification.getEmails().size()] ;
+            for(int j=0 ; j<emails_array.length ; j++){
+                emails_array[j]=notification.getEmails().get(j) ;
+            }
+            Map<String, Object> map = new HashMap<>() ;
+            map.put("link",notification.getLink()) ;
+            map.put("expiracy",notification.getExpiracy()) ;
+            map.put("emails",emails_array) ;
+            ObjectMapper mapper = new ObjectMapper();
+            mapper.writeValue(file,map);
+        }catch (IOException e) {
+            e.printStackTrace();
+        }
+        return res ;
     }
 
     @Override
@@ -63,56 +106,8 @@ public class VMThemeRESTFacade extends AbstractRESTFacade<VMTheme>{
 
 
         themes.forEach(theme -> {
-            Object []choices=theme.getChoices().toArray() ;
-            List<VMChoice> choicesNotVoted=new ArrayList<>() ;
-            List<ProposalTallyInterface> proposalTallyInterfaces=new ArrayList<>() ;
-            for(int i=0 ; i<choices.length ; i++){
-                VMChoice choice=(VMChoice) choices[i] ;
-                if(choice.isVoted()){
-                    proposalTallyInterfaces.add(new ProposalTally(
-                            new Integer[]{choice.getRejected(),
-                                    choice.getInsufficient(),
-                                    choice.getPass(),
-                                    choice.getAcceptable(),
-                                    choice.getGood(),
-                                    choice.getVeryGood(),
-                                    choice.getExcellent()})) ;
-                }else{
-                    choicesNotVoted.add(choice) ;
-                }
-            }
-            VMChoice newChoices[]=new VMChoice[choices.length] ;
-            if(!proposalTallyInterfaces.isEmpty()){
-                ProposalTallyInterface []proposalTallyInterfacesArray=new ProposalTallyInterface[proposalTallyInterfaces.size()] ;
-                for(int i=0 ; i<proposalTallyInterfaces.size() ; i++){
-                    proposalTallyInterfacesArray[i]=proposalTallyInterfaces.get(i) ;
-                }
-                TallyInterface tally = new NormalizedTally(proposalTallyInterfacesArray) ;
-                DeliberatorInterface mj = new MajorityJudgmentDeliberator();
-                ResultInterface result = mj.deliberate(tally);
-
-
-                int index=0 ;
-                for(ProposalResultInterface item : result.getProposalResults()){
-                    newChoices[item.getRank()-1]=(VMChoice) choices[index] ;
-                    System.out.println(item.getRank()+" - "+newChoices[item.getRank()-1].getTitle());
-                    index++ ;
-                }
-            }
-
-            for(int i=0 ; i<choicesNotVoted.size() ; i++){
-                newChoices[newChoices.length-(i+1)]= choicesNotVoted.get(i) ;
-            }
-            LinkedHashSet<VMChoice> setChoices = new LinkedHashSet<>();
-            System.out.println("Rang : ") ;
-            for(int i=0 ; i<newChoices.length ; i++){
-                System.out.println(i+" - "+newChoices[i].getTitle());
-                setChoices.add(newChoices[i]) ;
-            }
-
-            theme.setChoices(setChoices);
+            this.orderChoices(theme);
             newThemes.add(theme) ;
-
         });
 
         return newThemes ;
@@ -131,6 +126,54 @@ public class VMThemeRESTFacade extends AbstractRESTFacade<VMTheme>{
     public VMTheme find(Long id) {
         boolean withChoices = this.overview == null;
         VMTheme theme = themeService.find(id,withChoices,true);
+        this.orderChoices(theme);
         return theme;
+    }
+
+    private void orderChoices(VMTheme theme){
+        Object []choices=theme.getChoices().toArray() ;
+        List<VMChoice> choicesNotVoted=new ArrayList<>() ;
+        List<ProposalTallyInterface> proposalTallyInterfaces=new ArrayList<>() ;
+        for(int i=0 ; i<choices.length ; i++){
+            VMChoice choice=(VMChoice) choices[i] ;
+            if(choice.isVoted()){
+                proposalTallyInterfaces.add(new ProposalTally(
+                        new Integer[]{choice.getRejected(),
+                                choice.getInsufficient(),
+                                choice.getPass(),
+                                choice.getAcceptable(),
+                                choice.getGood(),
+                                choice.getVeryGood(),
+                                choice.getExcellent()})) ;
+            }else{
+                choicesNotVoted.add(choice) ;
+            }
+        }
+        HashSet<VMChoice> newChoices = new HashSet<>();
+        if(!proposalTallyInterfaces.isEmpty()){
+            ProposalTallyInterface []proposalTallyInterfacesArray=new ProposalTallyInterface[proposalTallyInterfaces.size()] ;
+            for(int i=0 ; i<proposalTallyInterfaces.size() ; i++){
+                proposalTallyInterfacesArray[i]=proposalTallyInterfaces.get(i) ;
+            }
+            TallyInterface tally = new NormalizedTally(proposalTallyInterfacesArray) ;
+            DeliberatorInterface mj = new MajorityJudgmentDeliberator();
+            ResultInterface result = mj.deliberate(tally);
+
+
+            int index=0 ;
+            for(ProposalResultInterface item : result.getProposalResults()){
+                VMChoice vmChoice=(VMChoice) choices[index] ;
+                vmChoice.setRank(item.getRank());
+                newChoices.add(vmChoice) ;
+                index++ ;
+            }
+        }
+
+        for(int i=0 ; i<choicesNotVoted.size() ; i++){
+            VMChoice vmChoice=choicesNotVoted.get(i) ;
+            vmChoice.setRank(newChoices.size()-i);
+            newChoices.add(vmChoice) ;
+        }
+        theme.setChoices(newChoices);
     }
 }

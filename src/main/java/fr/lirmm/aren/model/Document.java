@@ -4,13 +4,7 @@ import java.io.Serializable;
 import java.util.TreeSet;
 import java.util.SortedSet;
 
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.JoinColumn;
-import javax.persistence.Lob;
-import javax.persistence.ManyToOne;
-import javax.persistence.OneToMany;
-import javax.persistence.Table;
+import javax.persistence.*;
 import javax.validation.constraints.Size;
 import javax.xml.bind.annotation.XmlTransient;
 
@@ -58,6 +52,22 @@ public class Document extends AbstractDatedEntity implements Serializable {
 
     @Column(name = "debates_count")
     private Integer debatesCount = 0;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "type")
+    private Debate.Type type= Debate.Type.BASIC ;
+
+    @Column(name = "mesh_line")
+    private Integer meshLine = 1;
+
+    @Column(name = "mesh_column")
+    private Integer meshColumn = 1;
+
+    @Lob
+    @Type(type = "org.hibernate.type.TextType")
+    @Column(name = "map_link")
+    private String mapLink;
+
 
     /**
      *
@@ -163,6 +173,54 @@ public class Document extends AbstractDatedEntity implements Serializable {
     @Override
     public boolean isEditable() {
         return debates.isEmpty();
+    }
+
+    /**
+     *
+     * @return
+     */
+    public Debate.Type getType() {
+        return type;
+    }
+
+    /**
+     * 
+     * @param type
+     */
+    public void setType(Debate.Type type) {
+        this.type = type;
+    }
+
+    /**
+     *
+     * @return
+     */
+    public Integer getMeshLine() {
+        return meshLine;
+    }
+
+    /**
+     *
+     * @param meshLine
+     */
+    public void setMeshLine(Integer meshLine) {
+        this.meshLine = meshLine;
+    }
+
+    public Integer getMeshColumn() {
+        return meshColumn;
+    }
+
+    public void setMeshColumn(Integer meshColumn) {
+        this.meshColumn = meshColumn;
+    }
+
+    public String getMapLink() {
+        return mapLink;
+    }
+
+    public void setMapLink(String mapLink) {
+        this.mapLink = mapLink;
     }
 
     /**

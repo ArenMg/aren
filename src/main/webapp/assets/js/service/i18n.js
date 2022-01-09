@@ -91,7 +91,7 @@ const messages = {
         category: "Catégorie",
         title: "Titre",
         author: "Auteur⋅e",
-        restitution: "Restitution",
+        restitution: "Tableau de bord",
         posts: "Posts",
         last_post: "Dernier post",
         document: "Document",

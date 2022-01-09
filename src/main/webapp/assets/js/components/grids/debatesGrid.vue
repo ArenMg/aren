@@ -56,7 +56,7 @@
         </template>
 
         <template v-slot:action.1="{ value: debate }">
-            <router-link v-bind:to="debate.id+'/restitution'" append class="waves-effect waves-light btn">Restitution</router-link>
+            <router-link v-bind:to="debate.id+'/restitution'" append class="waves-effect waves-light btn">Tableau de bord</router-link>
         </template>
 
         <template v-slot:action.2="{ value: debate }">
